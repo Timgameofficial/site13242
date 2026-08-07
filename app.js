@@ -170,10 +170,92 @@
   });
 
   /* ---------------------------------------------------------
+     3.5. МОДАЛЬНЕ ВІКНО ЗАПИСУ (dialog)
+     Відкривається з будь-якої кнопки [data-open-booking] на
+     будь-якій сторінці сайту (шапка, геро, мобменю, футер,
+     липка панель, картки послуг).
+     --------------------------------------------------------- */
+  var bookingModal = document.getElementById("booking-modal");
+  var bookingOpenTriggers = document.querySelectorAll("[data-open-booking]");
+  var bookingCloseTriggers = bookingModal ? bookingModal.querySelectorAll("[data-close-booking]") : [];
+  var modalReturnFocus = null;
+
+  function openBookingModal(trigger) {
+    if (!bookingModal) return;
+    modalReturnFocus = document.activeElement;
+
+    /* якщо кнопка веде з конкретної послуги — підставляємо напрям у select */
+    var presetService = trigger && trigger.getAttribute && trigger.getAttribute("data-service");
+    if (presetService) {
+      var select = bookingModal.querySelector("#mf-service");
+      if (select) {
+        var match = Array.prototype.find.call(select.options, function (opt) {
+          return opt.value === presetService || opt.textContent.trim() === presetService;
+        });
+        if (match) select.value = match.value || match.textContent.trim();
+      }
+    }
+
+    if (typeof bookingModal.showModal === "function") {
+      bookingModal.showModal();
+    } else {
+      bookingModal.setAttribute("open", "");
+    }
+    document.body.classList.add("is-locked");
+    if (header) header.classList.remove("is-hidden");
+
+    var firstField = bookingModal.querySelector("#mf-name");
+    if (firstField) window.setTimeout(function () { firstField.focus(); }, 60);
+  }
+
+  function closeBookingModal() {
+    if (!bookingModal) return;
+    if (typeof bookingModal.close === "function" && bookingModal.open) {
+      bookingModal.close();
+    } else {
+      bookingModal.removeAttribute("open");
+    }
+  }
+
+  bookingOpenTriggers.forEach(function (trigger) {
+    trigger.addEventListener("click", function (e) {
+      e.preventDefault();
+      openBookingModal(trigger);
+    });
+  });
+  bookingCloseTriggers.forEach(function (btn) {
+    btn.addEventListener("click", closeBookingModal);
+  });
+
+  if (bookingModal) {
+    /* клік по backdrop (сама dialog, поза .modal-shell) закриває */
+    bookingModal.addEventListener("click", function (e) {
+      if (e.target === bookingModal) closeBookingModal();
+    });
+    /* прибираємо блокування скролу після закриття (ESC, .close(), backdrop) */
+    bookingModal.addEventListener("close", function () {
+      document.body.classList.remove("is-locked");
+      if (modalReturnFocus && typeof modalReturnFocus.focus === "function") {
+        modalReturnFocus.focus();
+      }
+    });
+  }
+
+  /* якщо хтось лишив старе посилання #booking (наприклад, зовнішній лінк) —
+     відкриваємо модалку замість скролу в порожнє місце */
+  if (window.location.hash === "#booking" && bookingModal) {
+    openBookingModal(null);
+  }
+
+  /* ---------------------------------------------------------
      4. АКТИВНИЙ ПУНКТ НАВІГАЦІЇ
      --------------------------------------------------------- */
   var navLinks = Array.prototype.slice.call(document.querySelectorAll(".nav-link"));
   var sections = navLinks
+    .filter(function (a) {
+      var href = a.getAttribute("href") || "";
+      return href.charAt(0) === "#" && href.length > 1;
+    })
     .map(function (a) {
       return document.querySelector(a.getAttribute("href"));
     })
@@ -513,12 +595,21 @@
   }
 
   /* ---------------------------------------------------------
-     10. ФОРМА ЗАПИСУ: валідація + маска телефону
+     10. ФОРМА ЗАПИСУ: валідація + маска телефону + відправка
+     Форма живе всередині модалки (#booking-modal). Немає
+     власного бекенду в статичному сайті — POST йде на
+     /api/notify (serverless-функція), яка й стукається в
+     Telegram Bot API зі свого боку, токен нікому не видно.
      --------------------------------------------------------- */
-  var form = document.querySelector("[data-booking]");
-  if (form) {
-    var phone = form.querySelector("#bf-phone");
+  var BOOKING_ENDPOINT = "/api/notify";
+
+  document.querySelectorAll("[data-booking]").forEach(function (form) {
+    var phone = form.querySelector('[name="phone"]');
     var success = form.querySelector("[data-form-success]");
+    var errorMsg = form.querySelector("[data-form-error]");
+    var btn = form.querySelector('button[type="submit"]');
+    var btnLabel = btn ? btn.querySelector("[data-btn-label]") : null;
+    var defaultBtnText = btnLabel ? btnLabel.textContent : (btn ? btn.textContent : "");
 
     if (phone) {
       phone.addEventListener("input", function () {
@@ -542,7 +633,7 @@
 
     function setError(input, message) {
       var field = input.closest(".field");
-      var slot = form.querySelector('[data-error-for="' + input.id + '"]');
+      var slot = field ? field.querySelector(".field-error") : null;
       if (field) field.classList.toggle("has-error", Boolean(message));
       if (slot) slot.textContent = message || "";
       input.setAttribute("aria-invalid", message ? "true" : "false");
@@ -551,7 +642,7 @@
     function validate() {
       var ok = true;
 
-      var name = form.querySelector("#bf-name");
+      var name = form.querySelector('[name="name"]');
       if (name) {
         if (name.value.trim().length < 2) {
           setError(name, "Вкажіть ім'я — щонайменше 2 символи");
@@ -570,31 +661,66 @@
       return ok;
     }
 
+    function setBusy(isBusy) {
+      if (!btn) return;
+      btn.disabled = isBusy;
+      var text = isBusy ? "Надсилаємо…" : defaultBtnText;
+      if (btnLabel) btnLabel.textContent = text;
+      else btn.textContent = text;
+    }
+
     form.addEventListener("submit", function (e) {
       e.preventDefault();
+      if (success) success.hidden = true;
+      if (errorMsg) errorMsg.hidden = true;
+
       if (!validate()) {
         var firstBad = form.querySelector(".field.has-error input");
         if (firstBad) firstBad.focus();
         return;
       }
 
-      /* Демо-режим: бекенду немає. Підключіть тут свій endpoint,
-         Formspree, Telegram Bot API або CRM. */
-      var btn = form.querySelector('button[type="submit"]');
-      if (btn) {
-        btn.disabled = true;
-        btn.textContent = "Надсилаємо…";
-      }
+      var payload = {
+        name: (form.querySelector('[name="name"]') || {}).value || "",
+        phone: (phone || {}).value || "",
+        service: (form.querySelector('[name="service"]') || {}).value || "",
+        note: (form.querySelector('[name="note"]') || {}).value || "",
+        page: window.location.href,
+      };
 
-      window.setTimeout(function () {
-        form.reset();
-        if (success) success.hidden = false;
-        if (btn) {
-          btn.disabled = false;
-          btn.textContent = "Записатися на консультацію";
-        }
-        if (success) success.scrollIntoView({ block: "nearest", behavior: reduceMotion ? "auto" : "smooth" });
-      }, 700);
+      setBusy(true);
+
+      fetch(BOOKING_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      })
+        .then(function (res) {
+          if (!res.ok) throw new Error("Bad response " + res.status);
+          return res.json().catch(function () { return {}; });
+        })
+        .then(function () {
+          form.reset();
+          setBusy(false);
+          if (success) {
+            success.hidden = false;
+            success.scrollIntoView({ block: "nearest", behavior: reduceMotion ? "auto" : "smooth" });
+          }
+          /* автозакриття модалки, якщо форма в ній */
+          var parentDialog = form.closest("dialog");
+          if (parentDialog) {
+            window.setTimeout(function () {
+              if (typeof parentDialog.close === "function") parentDialog.close();
+            }, 1800);
+          }
+        })
+        .catch(function () {
+          setBusy(false);
+          if (errorMsg) {
+            errorMsg.hidden = false;
+            errorMsg.scrollIntoView({ block: "nearest", behavior: reduceMotion ? "auto" : "smooth" });
+          }
+        });
     });
 
     form.querySelectorAll("input").forEach(function (input) {
@@ -602,7 +728,7 @@
         if (input.closest(".field").classList.contains("has-error")) validate();
       });
     });
-  }
+  });
 
   /* ---------------------------------------------------------
      11. Плавний скрол з урахуванням фіксованої шапки

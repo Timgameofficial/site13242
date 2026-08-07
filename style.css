@@ -17,6 +17,18 @@
   --line-soft:  color-mix(in srgb, var(--bone) 8%, transparent);
   --surface:    color-mix(in srgb, var(--bone) 4%, transparent);
 
+  /* --- glass / depth system --- */
+  --glass-bg:      color-mix(in srgb, var(--ink-soft) 62%, transparent);
+  --glass-bg-alt:  color-mix(in srgb, var(--ink) 55%, transparent);
+  --glass-border:  color-mix(in srgb, var(--bone) 12%, transparent);
+  --glass-border-hover: color-mix(in srgb, var(--brass) 45%, transparent);
+  --shadow-sm: 0 2px 10px color-mix(in srgb, var(--ink) 45%, transparent);
+  --shadow-md: 0 16px 40px -12px color-mix(in srgb, var(--ink) 70%, transparent),
+               0 2px 8px color-mix(in srgb, var(--ink) 40%, transparent);
+  --shadow-lg: 0 32px 80px -24px color-mix(in srgb, var(--ink) 80%, transparent),
+               0 8px 24px -8px color-mix(in srgb, var(--ink) 55%, transparent);
+  --shadow-gold: 0 20px 60px -20px color-mix(in srgb, var(--brass) 35%, transparent);
+
   --font-display: "Instrument Serif", "Times New Roman", serif;
   --font-sans: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
 
@@ -50,6 +62,33 @@ body{
   -webkit-font-smoothing:antialiased;
   text-rendering:optimizeLegibility;
   overflow-x:hidden;
+  position:relative;
+}
+
+/* ============ AMBIENT BACKGROUND — depth without noise ============
+   Fixed, behind everything: soft brass/platinum radial glows +
+   a barely-there technical grid. Keeps the ink field from reading flat. */
+body::before,
+body::after{
+  content:""; position:fixed; inset:0; z-index:-1; pointer-events:none;
+}
+body::before{
+  background-image:
+    radial-gradient(60rem 42rem at 12% -8%, color-mix(in srgb, var(--brass) 13%, transparent), transparent 62%),
+    radial-gradient(48rem 40rem at 108% 18%, color-mix(in srgb, var(--bone) 6%, transparent), transparent 60%),
+    radial-gradient(70rem 50rem at 50% 115%, color-mix(in srgb, var(--brass-deep) 12%, transparent), transparent 65%);
+}
+body::after{
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--bone) 5%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--bone) 5%, transparent) 1px, transparent 1px);
+  background-size: 88px 88px;
+  -webkit-mask-image: radial-gradient(120% 90% at 50% 0%, #000 0%, transparent 78%);
+  mask-image: radial-gradient(120% 90% at 50% 0%, #000 0%, transparent 78%);
+  opacity:.55;
+}
+@media (max-width:720px){
+  body::after{ background-size:56px 56px; }
 }
 
 body.is-locked{ overflow:hidden; }
@@ -95,8 +134,10 @@ button{ font:inherit; color:inherit; }
   position:relative;
 }
 .section--alt{
-  background-color: var(--ink-soft);
+  background-color: color-mix(in srgb, var(--ink-soft) 88%, transparent);
   border-block:1px solid var(--line-soft);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
 }
 
 .hairline{
@@ -199,9 +240,13 @@ p{ margin:0; }
   background: var(--brass);
   border-color: var(--brass);
   color: var(--ink);
+  box-shadow: 0 12px 30px -10px color-mix(in srgb, var(--brass) 55%, transparent);
 }
 .btn--gold::after{ background: var(--bone); }
-.btn--gold:hover{ color: var(--ink); border-color: var(--bone); }
+.btn--gold:hover{
+  color: var(--ink); border-color: var(--bone);
+  box-shadow: 0 16px 40px -10px color-mix(in srgb, var(--brass) 65%, transparent);
+}
 
 .btn--ghost{
   border-color: color-mix(in srgb, var(--brass) 55%, transparent);
@@ -658,19 +703,29 @@ p{ margin:0; }
 .services-grid{
   display:grid;
   grid-template-columns: repeat(3, 1fr);
-  gap:1px;
-  background: var(--line-soft);
-  border:1px solid var(--line-soft);
+  gap:1.25rem;
+  background:transparent;
+  border:0;
 }
 .service-card{
   display:flex; flex-direction:column; gap:1.1rem;
   padding: clamp(1.75rem, 3vw, 2.75rem);
-  background: var(--ink-soft);
+  background: var(--glass-bg);
+  border:1px solid var(--glass-border);
+  border-radius:6px;
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  box-shadow: var(--shadow-md);
   position:relative;
-  transition: background .45s var(--ease);
+  transition: transform .45s var(--ease), box-shadow .45s var(--ease), border-color .45s var(--ease), background .45s var(--ease);
 }
-.section--alt .service-card{ background: var(--ink); }
-.service-card:hover{ background: color-mix(in srgb, var(--brass) 5%, var(--ink-soft)); }
+.section--alt .service-card{ background: var(--glass-bg-alt); }
+.service-card:hover{
+  background: color-mix(in srgb, var(--brass) 7%, var(--glass-bg));
+  border-color: var(--glass-border-hover);
+  box-shadow: var(--shadow-lg), var(--shadow-gold);
+  transform: translateY(-6px);
+}
 .service-icon{
   width:44px; height:44px;
   color: var(--brass);
@@ -706,17 +761,24 @@ p{ margin:0; }
 .stats-grid{
   display:grid;
   grid-template-columns: repeat(4, 1fr);
-  gap:1px;
-  background: var(--line-soft);
-  border:1px solid var(--line-soft);
+  gap:1.25rem;
+  background:transparent;
+  border:0;
   margin-bottom: clamp(3rem, 6vw, 5rem);
 }
 .stat-block{
   padding: clamp(1.5rem, 3vw, 2.5rem);
-  background: var(--ink);
+  background: var(--glass-bg);
+  border:1px solid var(--glass-border);
+  border-radius:6px;
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  box-shadow: var(--shadow-sm);
   display:flex; flex-direction:column; gap:.45rem;
+  transition: box-shadow .4s var(--ease), border-color .4s var(--ease);
 }
-.section--alt .stat-block{ background: var(--ink-soft); }
+.stat-block:hover{ border-color: var(--glass-border-hover); box-shadow: var(--shadow-md); }
+.section--alt .stat-block{ background: var(--glass-bg-alt); }
 .stat-block .num{
   font-family: var(--font-display);
   font-size: clamp(2.5rem, 6vw, 4rem);
@@ -1053,10 +1115,20 @@ p{ margin:0; }
   scroll-snap-align:center;
   display:flex; flex-direction:column; gap:1.25rem;
   padding: clamp(1.6rem, 3vw, 2.25rem);
-  border:1px solid var(--line);
-  background: var(--ink-soft);
+  border:1px solid var(--glass-border);
+  border-radius:6px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  box-shadow: var(--shadow-md);
+  transition: box-shadow .4s var(--ease), border-color .4s var(--ease), transform .4s var(--ease);
 }
-.section--alt .review-card{ background: var(--ink); }
+.section--alt .review-card{ background: var(--glass-bg-alt); }
+.review-card:hover{
+  border-color: var(--glass-border-hover);
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-4px);
+}
 .review-stars{ display:flex; gap:.25rem; }
 .review-stars svg{ width:14px; height:14px; color: var(--brass); }
 .review-card blockquote{
@@ -1189,6 +1261,173 @@ p{ margin:0; }
   background: color-mix(in srgb, var(--brass) 8%, transparent);
   font-size:.875rem;
   color: var(--brass);
+}
+.form-error-msg{
+  padding:.9rem 1.1rem;
+  border:1px solid color-mix(in srgb, #C2564B 45%, transparent);
+  background: color-mix(in srgb, #C2564B 10%, transparent);
+  font-size:.875rem;
+  color:#E08a80;
+}
+.form-error-msg a{ text-decoration:underline; color:inherit; }
+.hp-field{
+  position:absolute !important;
+  width:1px; height:1px; overflow:hidden;
+  clip:rect(0,0,0,0); white-space:nowrap;
+  left:-9999px;
+}
+.sr-only{
+  position:absolute !important;
+  width:1px; height:1px; padding:0; margin:-1px;
+  overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0;
+}
+
+/* ---- Booking teaser (homepage) ---- */
+.booking-shell--teaser{ align-items:stretch; }
+.booking-cta-card{
+  display:flex; flex-direction:column; align-items:flex-start; gap:1rem;
+  padding: clamp(2rem, 4vw, 3rem);
+  border:1px solid var(--glass-border);
+  border-radius:6px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  box-shadow: var(--shadow-lg);
+  justify-content:center;
+}
+.booking-cta-icon{ width:40px; height:40px; color: var(--brass); }
+.booking-cta-card p{ color: var(--bone-dim); }
+.booking-cta-card .btn{ width:100%; margin-top:.4rem; }
+
+/* ============ BOOKING MODAL ============ */
+dialog.modal{
+  padding:0; border:0; margin:auto;
+  background:transparent;
+  max-width:min(560px, 92vw);
+  width:100%;
+  max-height:min(88vh, 900px);
+  overflow:visible;
+}
+dialog.modal::backdrop{
+  background: color-mix(in srgb, var(--ink) 72%, transparent);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+dialog.modal[open]{ animation: modalIn .38s var(--ease-out); }
+dialog.modal[open]::backdrop{ animation: modalBackdropIn .38s var(--ease-out); }
+@keyframes modalIn{
+  from{ opacity:0; transform: translateY(18px) scale(.98); }
+  to{ opacity:1; transform: translateY(0) scale(1); }
+}
+@keyframes modalBackdropIn{
+  from{ opacity:0; }
+  to{ opacity:1; }
+}
+.modal-shell{
+  position:relative;
+  max-height:min(88vh, 900px);
+  overflow-y:auto;
+  padding: clamp(1.75rem, 4vw, 2.75rem);
+  background: color-mix(in srgb, var(--ink-soft) 96%, transparent);
+  border:1px solid var(--glass-border-hover);
+  border-radius:8px;
+  box-shadow: var(--shadow-lg), var(--shadow-gold);
+  backdrop-filter: blur(24px) saturate(140%);
+  -webkit-backdrop-filter: blur(24px) saturate(140%);
+}
+.modal-close{
+  position:absolute; top:1.1rem; right:1.1rem;
+  width:36px; height:36px;
+  display:flex; align-items:center; justify-content:center;
+  border:1px solid var(--line); border-radius:50%;
+  color: var(--bone-dim);
+  background: color-mix(in srgb, var(--bone) 4%, transparent);
+  transition: color .3s var(--ease), border-color .3s var(--ease), transform .3s var(--ease);
+}
+.modal-close svg{ width:16px; height:16px; }
+.modal-close:hover{ color: var(--brass); border-color: var(--glass-border-hover); transform: rotate(90deg); }
+.modal-head{ display:flex; flex-direction:column; gap:.6rem; margin-bottom:1.6rem; padding-right:2.5rem; }
+.modal-head > p:not(.eyebrow){ color: var(--bone-dim); }
+.modal .booking-form{ padding:0; border:0; background:transparent; }
+.modal .btn[disabled]{ opacity:.6; cursor:not-allowed; }
+
+/* ---- Breadcrumbs + lightweight page hero (service/price/team subpages) ---- */
+.crumbs{
+  display:flex; flex-wrap:wrap; align-items:center; gap:.5rem;
+  padding-top: clamp(1.5rem, 3vw, 2.25rem);
+  font-size:.8rem; color: var(--bone-dim);
+}
+.crumbs a{ color: var(--bone-dim); transition: color .3s var(--ease); }
+.crumbs a:hover{ color: var(--brass); }
+.crumbs span[aria-current]{ color: var(--bone); }
+.crumbs .sep{ opacity:.5; }
+
+.page-hero{ padding-block: clamp(2.5rem, 5vw, 4.5rem) clamp(2rem, 4vw, 3rem); }
+.page-hero-grid{
+  display:grid; grid-template-columns: 1.15fr .85fr; gap: clamp(2rem, 4vw, 3.5rem);
+  align-items:center;
+}
+.page-hero-copy h1{ margin-top:.7rem; }
+.page-hero-copy > p{ color: var(--bone-dim); max-width:52ch; margin-top:1rem; }
+.page-hero-actions{ display:flex; flex-wrap:wrap; gap:1rem; margin-top:1.75rem; }
+.page-hero-media{
+  border-radius:8px; overflow:hidden; border:1px solid var(--glass-border);
+  box-shadow: var(--shadow-lg);
+  aspect-ratio: 4/5;
+}
+.page-hero-media img{ width:100%; height:100%; object-fit:cover; display:block; }
+
+.spec-grid{
+  display:grid; grid-template-columns: repeat(4, 1fr); gap:1px;
+  background: var(--line-soft); border:1px solid var(--line-soft);
+  margin-top: clamp(2rem, 4vw, 3rem);
+}
+.spec-cell{ padding:1.5rem; background: var(--ink); display:flex; flex-direction:column; gap:.35rem; }
+.section--alt .spec-cell{ background: var(--ink-soft); }
+.spec-cell dt{ font-size:.72rem; letter-spacing:.06em; text-transform:uppercase; color: var(--bone-dim); }
+.spec-cell dd{ font-family: var(--font-display); font-size:1.5rem; color: var(--bone); }
+
+.related-services{
+  display:grid; grid-template-columns: repeat(2, 1fr); gap:1.25rem;
+  margin-top: clamp(2rem, 4vw, 3rem);
+}
+.related-card{
+  display:flex; flex-direction:column; gap:.6rem;
+  padding: clamp(1.5rem, 3vw, 2rem);
+  border:1px solid var(--glass-border); border-radius:6px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow .35s var(--ease), border-color .35s var(--ease), transform .35s var(--ease);
+}
+.related-card:hover{ border-color: var(--glass-border-hover); box-shadow: var(--shadow-md); transform: translateY(-4px); }
+.related-card h4{ font-size:1.15rem; }
+.related-card p{ color: var(--bone-dim); font-size:.9rem; }
+
+.cta-banner{
+  display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:1.5rem;
+  padding: clamp(2rem, 4vw, 3rem);
+  border:1px solid var(--glass-border-hover); border-radius:8px;
+  background: var(--glass-bg-alt);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  box-shadow: var(--shadow-lg), var(--shadow-gold);
+}
+.cta-banner h3{ font-size:1.5rem; max-width:26ch; }
+.cta-banner p{ color: var(--bone-dim); margin-top:.4rem; }
+
+@media (max-width: 860px){
+  .page-hero-grid{ grid-template-columns: 1fr; }
+  .page-hero-media{ order:-1; aspect-ratio:16/10; }
+  .spec-grid{ grid-template-columns: repeat(2, 1fr); }
+  .related-services{ grid-template-columns: 1fr; }
+  .cta-banner{ flex-direction:column; align-items:flex-start; }
+}
+
+@media (max-width:560px){
+  dialog.modal{ max-width:100vw; width:100vw; max-height:100vh; height:100%; }
+  .modal-shell{ max-height:100vh; height:100%; border-radius:0; border-left:0; border-right:0; }
 }
 
 /* ============ CONTACT ============ */
