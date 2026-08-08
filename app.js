@@ -748,4 +748,32 @@
       });
     });
   }
+  /* ---------------------------------------------------------
+     12. ГРЕЙСФУЛ-ФОЛБЕК ДЛЯ ФОТО, ЯКИХ ЩЕ НЕМАЄ
+     Поки реальні фото пацієнтів/лікарів/кабінету не завантажені,
+     показуємо фірмову замінну картинку замість зламаної іконки
+     браузера — виглядає як навмисний дизайн, а не як помилка.
+     --------------------------------------------------------- */
+  var PLACEHOLDER_SRC =
+    "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E" +
+    "%3Crect width='200' height='200' fill='%2316150F'/%3E" +
+    "%3Ccircle cx='100' cy='100' r='96' fill='none' stroke='%23C8A96A' stroke-opacity='.25' stroke-width='1'/%3E" +
+    "%3Cg fill='none' stroke='%23C8A96A' stroke-opacity='.75' stroke-width='2.2'%3E" +
+    "%3Cpath d='M100 62c-16 0-28 11-28 27 0 14 6 24 10 34 3 8 5 15 8 15s4-9 6-16 3-8 4-8 2 1 4 8 3 16 6 16 5-7 8-15c4-10 10-20 10-34 0-16-12-27-28-27z'/%3E" +
+    "%3C/g%3E%3C/svg%3E";
+
+  document.querySelectorAll("img").forEach(function (img) {
+    img.addEventListener(
+      "error",
+      function () {
+        if (img.dataset.fallback) return; // не зациклюємось, якщо і плейсхолдер не завантажиться
+        img.dataset.fallback = "1";
+        img.src = PLACEHOLDER_SRC;
+        img.classList.add("is-placeholder");
+        img.removeAttribute("srcset");
+      },
+      { once: true }
+    );
+  });
+
 })();
